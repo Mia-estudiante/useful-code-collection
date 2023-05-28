@@ -1,5 +1,7 @@
 import os 
 import json
+import random
+import pandas as pd
 
 def check(goal, future_value):
     if future_value < goal:
@@ -43,6 +45,7 @@ labels_count = {
 
 # 1. 현재 디렉토리에서 json파일만 추출
 file_path = "/total"
+
 file_list = os.listdir(file_path)
 file_list = [[file_name] for file_name in file_list if file_name.endswith(".json") ]
 
@@ -86,7 +89,14 @@ for sub_list in file_list:
 # 3. 객체 개수 기준으로 역정렬
 file_list.sort(key=lambda x : x[1], reverse=True)
 
-# 4. 정렬된 파일 순으로 라벨 개수 세기
+# 4. annotation 개수가 1개인 것만 shuffle
+only1 = [sub_list for sub_list in file_list if sub_list[1] == 1]
+remain = [sub_list for sub_list in file_list if sub_list[1] != 1]
+random.shuffle(only1)
+
+file_list = remain + only1
+
+# 5. 정렬된 파일 순으로 라벨 개수 세기
 for sub_list in file_list:
     '''
     sub_list = ['220708_BusanPort_00067_606.json', 6, {'fishing_plumb': 3, 'scrap_iron': 3}]
@@ -102,7 +112,7 @@ for sub_list in file_list:
     '''
     sub_dict = sub_list[2]
 
-    # 1) 먼저 full_list에 label 존재 여부 확인 - 해당 클래스의 목표치를 채운 경우, 업데이트 x
+    # 1) 먼저 full_list에 label 존재 여부 확인
     if not check_full_list(list(sub_dict.keys()), full_list):
         continue
     
@@ -114,7 +124,7 @@ for sub_list in file_list:
         future_dict[key].append(check(labels_count[key][1], labels_count[key][0]+sub_dict[key]))
 
     # 3) 함수 check 리턴 값 확인
-    if not is_two(future_dict): # 목표치보다 크면 업데이트 x
+    if not is_two(future_dict):
         continue
     
     # 4) 목표치 채운 클래스 추가
@@ -122,11 +132,46 @@ for sub_list in file_list:
         if future_dict[key][1]==1:
             full_list.append(key)
 
-    # 5-1) extracted_list에 추가 
+    # 5) extracted_list에 추가 및 labels_count 업데이트
     extracted_list.append(sub_list[0])
 
-    # 5-2) labels_count 업데이트
     for key in future_dict.keys(): 
         labels_count[key][0] = future_dict[key][0]
 
-print(extracted_list)
+print("=========================================================")
+print(labels_count)
+print("=========================================================")
+
+# 6. csv 파일 생성
+'''
+sub_list[2] = annotation 내 클래스 별 객체 개수 모음 dictionary
+sub_list[2][클래스] = 클래스 별 객체 개수 
+'''
+# DataFrame 생성을 위한 list
+data = list()
+for extract in extracted_list:
+    # 하나의 데이터를 위한 list
+    datum = list()
+
+    file_name = extract[:-5]+'.png'
+    annotations = ''
+
+    for sub_list in file_list: 
+        if sub_list[0] != extract:
+            continue
+        for key in sub_list[2].keys():
+            for _ in range(sub_list[2][key]):
+                annotations += str(key)
+                annotations += '/'
+        annotations = annotations.rstrip('/') # 마지막 / 제거
+
+    datum.append(file_name)
+    datum.append(annotations)
+
+    data.append(datum)
+
+df = pd.DataFrame(data, columns=['data', 'annotations'])
+df.to_csv("list.csv", index=False)
+
+print("추출된 data 개수는 총 " + str(len(extracted_list)) + "개입니다.")
+print(full_list)
