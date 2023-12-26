@@ -1,12 +1,8 @@
-import numpy as np
-import cv2
 import os
-import json
+import numpy as np
 from collections import OrderedDict
-import argparse
 from PIL import Image as PILImage
 from glob import glob
-import collections
 
 #%%
 #SOLIDER-S  LIP
