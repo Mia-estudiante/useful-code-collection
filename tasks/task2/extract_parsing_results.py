@@ -3,40 +3,42 @@ import numpy as np
 from collections import OrderedDict
 from PIL import Image as PILImage
 from glob import glob
+#%%
+def make_dicmap(dataset):
+    dic2clt = {'upper':2, 'bottom':1, 'dress':3}
 
-#%%
-#SOLIDER-S  LIP
-DSIZE = (572,384)
-NUM_CLASSES = 4
-DATASET = 'LIP'
-DIR_GT = "/LIP/TrainVal_parsing_annotations/val_put_palette"
-DIR_PRED = "/LIP/TrainVal_parsing_annotations/model_results/SOLIDER_SwinS_train"
+    dic_parset = {
+        'ppss': {'upper':[3], 'bottom':[4]},  
+        'LIP': {'upper':[5,7], 'bottom':[9,12], 'dress':[6,10]},
+        'MHP_v2': {'upper':[10,11,12,13,14,15,34,57],  
+                'bottom':[17,18,19,58],  
+                'dress':[35,36,37,38]},  
+        'Duke': {'upper':[3], 'bottom':[5], 'dress': [200]},
+        'HPD': {'upper':[4,5], 'bottom':[6], 'dress':[7]}
+    }
 
-a = compute_mean_ioU_LIP(DIR_PRED, DIR_GT, NUM_CLASSES, DATASET, DSIZE)
+    dic_map = {v: dic2clt[key] for key, value in dic_parset[dataset].items() for v in value}
+    return dic_map
 #%%
-#SOLIDER-S  Anyang
-DSIZE = (572,384)
-NUM_CLASSES = 4
-DATASET = 'LIP'
-DIR_GT = "/parsing-reid/정리/Anyang/val_segmentations"
-DIR_PRED = "/LIP/TrainVal_parsing_annotations/model_results/ReID/Anyang/SOLIDER_SwinS_train"
-a = compute_mean_ioU_Anyang_Market1501(DIR_PRED, DIR_GT, NUM_CLASSES, DATASET, DSIZE)
-#%%
-#SOLIDER-S  Market1501
-DSIZE = (572,384)
-NUM_CLASSES = 4
-DATASET = 'LIP'
-DIR_GT = "/parsing-reid/정리/Market1501/val_segmentations"
-DIR_PRED = "/LIP/TrainVal_parsing_annotations/model_results/ReID/Market1501/SOLIDER_SwinS_train"
-a = compute_mean_ioU_Anyang_Market1501(DIR_PRED, DIR_GT, NUM_CLASSES, DATASET, DSIZE)
-#%%
-#SOLIDER-S  DukeMTMC
-DSIZE = (572,384)
-NUM_CLASSES = 4
-DATASET = 'Duke'
-DIR_GT = "/parsing-reid/정리/DukeMTMC/total/val_segmentations"
-DIR_PRED = "/LIP/TrainVal_parsing_annotations/model_results/ReID/DukeMTMC/SOLIDER_SwinS_train"
-a = compute_mean_ioU_Duke(DIR_PRED, DIR_GT, NUM_CLASSES, DATASET, DSIZE)
+def get_confusion_matrix(gt_label, pred_label, num_classes):
+    """
+    Calcute the confusion matrix by given label and pred
+    :param gt_label: the ground truth label
+    :param pred_label: the pred label
+    :param num_classes: the nunber of class
+    :return: the confusion matrix
+    """
+    index = (gt_label * num_classes + pred_label).astype('int32').reshape(-1)
+    label_count = np.bincount(index)
+    confusion_matrix = np.zeros((num_classes, num_classes)) 
+    
+    for i_label in range(num_classes):
+        for i_pred_label in range(num_classes):
+            cur_index = i_label * num_classes + i_pred_label
+            if cur_index < len(label_count):
+                confusion_matrix[i_label, i_pred_label] = label_count[cur_index]
+
+    return confusion_matrix
 #%%
 def compute_mean_ioU_LIP(dir_pred, dir_gt, num_classes=4, dataset='LIP', dsize=(473,473)):
     
@@ -149,43 +151,6 @@ def compute_mean_ioU_Anyang_Market1501(dir_pred, dir_gt, num_classes=4, dataset=
     name_value = OrderedDict(name_value) 
 
     return name_value
-#%%
-def get_confusion_matrix(gt_label, pred_label, num_classes):
-    """
-    Calcute the confusion matrix by given label and pred
-    :param gt_label: the ground truth label
-    :param pred_label: the pred label
-    :param num_classes: the nunber of class
-    :return: the confusion matrix
-    """
-    index = (gt_label * num_classes + pred_label).astype('int32').reshape(-1)
-    label_count = np.bincount(index)
-    confusion_matrix = np.zeros((num_classes, num_classes)) 
-    
-    for i_label in range(num_classes):
-        for i_pred_label in range(num_classes):
-            cur_index = i_label * num_classes + i_pred_label
-            if cur_index < len(label_count):
-                confusion_matrix[i_label, i_pred_label] = label_count[cur_index]
-
-    return confusion_matrix
-
-#%%
-def make_dicmap(dataset):
-    dic2clt = {'upper':2, 'bottom':1, 'dress':3}
-
-    dic_parset = {
-        'ppss': {'upper':[3], 'bottom':[4]},  
-        'LIP': {'upper':[5,7], 'bottom':[9,12], 'dress':[6,10]},
-        'MHP_v2': {'upper':[10,11,12,13,14,15,34,57],  
-                'bottom':[17,18,19,58],  
-                'dress':[35,36,37,38]},  
-        'Duke': {'upper':[3], 'bottom':[5], 'dress': [200]},
-        'HPD': {'upper':[4,5], 'bottom':[6], 'dress':[7]}
-    }
-
-    dic_map = {v: dic2clt[key] for key, value in dic_parset[dataset].items() for v in value}
-    return dic_map
 
 #%%
 '''
@@ -193,7 +158,7 @@ def make_dicmap(dataset):
     => gt, pred를 맞춰줘야 함
 '''
 def compute_mean_ioU_Duke(dir_pred, dir_gt, num_classes=4, dataset='Duke', dsize=(473,473)):
-    
+
     #Step1-1. confusion_matrix 초기화
     confusion_matrix = np.zeros((num_classes, num_classes))
     
@@ -246,3 +211,38 @@ def compute_mean_ioU_Duke(dir_pred, dir_gt, num_classes=4, dataset='Duke', dsize
     name_value = OrderedDict(name_value) 
 
     return name_value
+
+#%%
+#SOLIDER-S  LIP
+DSIZE = (572,384)
+NUM_CLASSES = 4
+DATASET = 'LIP'
+DIR_GT = "/LIP/TrainVal_parsing_annotations/val_put_palette"
+DIR_PRED = "/LIP/TrainVal_parsing_annotations/model_results/SOLIDER_SwinS_train"
+
+a = compute_mean_ioU_LIP(DIR_PRED, DIR_GT, NUM_CLASSES, DATASET, DSIZE)
+#%%
+#SOLIDER-S  Anyang
+DSIZE = (572,384)
+NUM_CLASSES = 4
+DATASET = 'LIP'
+DIR_GT = "/parsing-reid/정리/Anyang/val_segmentations"
+DIR_PRED = "/LIP/TrainVal_parsing_annotations/model_results/ReID/Anyang/SOLIDER_SwinS_train"
+a = compute_mean_ioU_Anyang_Market1501(DIR_PRED, DIR_GT, NUM_CLASSES, DATASET, DSIZE)
+#%%
+#SOLIDER-S  Market1501
+DSIZE = (572,384)
+NUM_CLASSES = 4
+DATASET = 'LIP'
+DIR_GT = "/parsing-reid/정리/Market1501/val_segmentations"
+DIR_PRED = "/LIP/TrainVal_parsing_annotations/model_results/ReID/Market1501/SOLIDER_SwinS_train"
+a = compute_mean_ioU_Anyang_Market1501(DIR_PRED, DIR_GT, NUM_CLASSES, DATASET, DSIZE)
+#%%
+#SOLIDER-S  DukeMTMC
+DSIZE = (572,384)
+NUM_CLASSES = 4
+DATASET = 'Duke'
+DIR_GT = "/parsing-reid/정리/DukeMTMC/total/val_segmentations"
+DIR_PRED = "/LIP/TrainVal_parsing_annotations/model_results/ReID/DukeMTMC/SOLIDER_SwinS_train"
+a = compute_mean_ioU_Duke(DIR_PRED, DIR_GT, NUM_CLASSES, DATASET, DSIZE)
+    
